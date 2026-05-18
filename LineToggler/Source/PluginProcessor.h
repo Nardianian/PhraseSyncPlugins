@@ -10,6 +10,8 @@
 
 #include <JuceHeader.h>
 
+class LineTogglerAudioProcessorEditor;
+
 // Hard-coded 12 lines for now - one octave of sampler slots.
 #define CBR_TOGGLELINES_NUM_LINES 4
 // Lines start at C1 and go for an octave. @see getSlotIndexForNote().
@@ -57,6 +59,7 @@ public:
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
+    juce::AudioProcessorValueTreeState parameters;
 
 private:
     int getSlotIndexForNote(const int midiNoteNumber);
@@ -72,8 +75,6 @@ private:
 
     // State of each line - true = gate open / is playing.
     bool lineGate[CBR_TOGGLELINES_NUM_LINES];
-
-    juce::AudioProcessorValueTreeState parameters;
 
     // Store a direct pointer to each param for convenience.
     juce::AudioParameterBool *allowLinePlayback[CBR_TOGGLELINES_NUM_LINES] ;
