@@ -56,6 +56,7 @@ public:
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
+        juce::AudioProcessorValueTreeState parameters;
 
 private:
     //==============================================================================
@@ -72,8 +73,6 @@ private:
     juce::AudioParameterFloat *destinationValue[CBR_CCMOTION_NUM_PARAMS];
     double currentValue[CBR_CCMOTION_NUM_PARAMS];
     int lastOutputCC[CBR_CCMOTION_NUM_PARAMS];
-
-    juce::AudioProcessorValueTreeState parameters;
     
     juce::AudioParameterChoice* phraseBeats;
     juce::AudioParameterInt* firstCCNumber;
