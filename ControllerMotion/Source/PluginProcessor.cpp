@@ -7,6 +7,7 @@
 */
 
 #include "PluginProcessor.h"
+#include "PluginEditor.h"
 
 //==============================================================================
 MIDIControllerMotionAudioProcessor::MIDIControllerMotionAudioProcessor()
@@ -283,16 +284,17 @@ void MIDIControllerMotionAudioProcessor::processBlock (juce::AudioBuffer<float>&
 {
     outputMidiBuffer.clear();
   
-    juce::int64 playheadTimeSamples = 0;
-
+juce::int64 playheadTimeSamples = 0;
     bool isPlaying = false;
-    juce::AudioPlayHead::CurrentPositionInfo playheadPosition;
-    juce::AudioPlayHead* playhead = AudioProcessor::getPlayHead();
-    if (playhead) {
-        playhead->getCurrentPosition(playheadPosition);
-        isPlaying = playheadPosition.isPlaying;
-        playheadTimeSamples = playheadPosition.timeInSamples;
-        tempoBpm = playheadPosition.bpm;
+
+    if (auto* playhead = getPlayHead())
+    {
+        if (auto position = playhead->getPosition())
+        {
+            isPlaying = position->getIsPlaying();
+            playheadTimeSamples = position->getTimeInSamples().hasValue() ? *(position->getTimeInSamples()) : 0;
+            tempoBpm = position->getBpm().hasValue() ? *(position->getBpm()) : 120.0;
+        }
     }
 
     // Determine time left in current phrase (normalised 0-1).
@@ -399,12 +401,12 @@ void MIDIControllerMotionAudioProcessor::outputPhraseInfoAsCCs (double position,
 //==============================================================================
 bool MIDIControllerMotionAudioProcessor::hasEditor() const
 {
-    return false;
+    return true;
 }
 
 juce::AudioProcessorEditor* MIDIControllerMotionAudioProcessor::createEditor()
 {
-    return 0;
+    return new MIDIControllerMotionAudioProcessorEditor (*this);
 }
 
 //==============================================================================
