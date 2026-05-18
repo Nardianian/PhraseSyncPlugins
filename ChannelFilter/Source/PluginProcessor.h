@@ -36,6 +36,8 @@ public:
 
     //==============================================================================
     const juce::String getName() const override;
+    
+        juce::AudioProcessorValueTreeState parameters;
 
     bool acceptsMidi() const override;
     bool producesMidi() const override;
@@ -63,8 +65,6 @@ private:
     bool shouldPlayMidiMessage (juce::MidiMessage message,juce::int64 blockTime, juce::int64 eventTime);
 
     int getPhraseBeats ();
-
-    juce::AudioProcessorValueTreeState parameters;
 
     juce::AudioParameterInt* selectedChannel;
     juce::AudioParameterChoice* phraseBeats;
