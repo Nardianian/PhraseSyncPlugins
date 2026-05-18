@@ -52,6 +52,7 @@ public:
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
+       juce::AudioProcessorValueTreeState parameters;
 
 private:
     //==============================================================================
@@ -65,8 +66,6 @@ private:
     int getSemitonesPerVariation ();
     int getPhraseBeats ();
 
-    juce::AudioProcessorValueTreeState parameters;
-
     juce::AudioParameterInt* selectedVariation;
     juce::AudioParameterChoice* notesPerVariation;
     juce::AudioParameterChoice* phraseBeats;
@@ -77,3 +76,4 @@ private:
 
     juce::MidiBuffer outputMidiBuffer;
 };
+
