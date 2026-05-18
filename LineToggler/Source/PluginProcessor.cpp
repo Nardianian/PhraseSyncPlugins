@@ -7,6 +7,7 @@
 */
 
 #include "PluginProcessor.h"
+#include "PluginEditor.h"
 
 const int LineTogglerAudioProcessor::notesPerLine[] = { 2, 2, 4, 4 };
 
@@ -117,17 +118,20 @@ int LineTogglerAudioProcessor::getCurrentProgram()
     return 0;
 }
 
-void LineTogglerAudioProcessor::setCurrentProgram (int index)
+void LineTogglerAudioProcessor::setCurrentProgram(int index)
 {
+    juce::ignoreUnused(index);
 }
 
-const juce::String LineTogglerAudioProcessor::getProgramName (int index)
+const juce::String LineTogglerAudioProcessor::getProgramName(int index)
 {
+    juce::ignoreUnused(index);
     return {};
 }
 
-void LineTogglerAudioProcessor::changeProgramName (int index, const juce::String& newName)
+void LineTogglerAudioProcessor::changeProgramName(int index, const juce::String& newName)
 {
+    juce::ignoreUnused(index, newName);
 }
 
 //==============================================================================
@@ -146,26 +150,12 @@ void LineTogglerAudioProcessor::releaseResources()
 #ifndef JucePlugin_PreferredChannelConfigurations
 bool LineTogglerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
-  #if JucePlugin_IsMidiEffect
-    juce::ignoreUnused (layouts);
-    return true;
-  #else
-    // This is the place where you check if the layout is supported.
-    // In this template code we only support mono or stereo.
-    // Some plugin hosts, such as certain GarageBand versions, will only
-    // load plugins that support stereo bus layouts.
+    // Come Synth, non abbiamo ingressi audio ma solo uscite stereo o mono
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
      && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
 
-    // This checks if the input layout matches the output layout
-   #if ! JucePlugin_IsSynth
-    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
-        return false;
-   #endif
-
     return true;
-  #endif
 }
 #endif
 
@@ -232,77 +222,82 @@ const juce::MidiMessageMetadata* findNoteOnEvent(
 
 void LineTogglerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+    juce::ignoreUnused(buffer);
+
     outputMidiBuffer.clear();
 
-    // TODO: Check transport state, if not playing back then disable all gates / let everything though.
-    // TODO: Pass through all unrelated MIDI events (not control notes or notes in lines).
-
-    // Loop over each slot / line.
-    for (int slotIndex = 0; slotIndex < CBR_TOGGLELINES_NUM_LINES; slotIndex++) {
-        const int bufferEndTime = buffer.getNumSamples();
-        int processStartTime = 0, processEndTime = buffer.getNumSamples();
-        int controlNoteSearchStart = 0;
-        bool nextGateState = lineGate[slotIndex];
-
-        // Iterate through the buffer one control note at a time.
-        while ( processStartTime < bufferEndTime ) {
-            // Search for next control note change for the current slot.
-            const juce::MidiMessageMetadata* controlNoteOn = findNoteOnEvent(midiMessages, controlNoteSearchStart, lineControlNotes[slotIndex]);
-
-            // We found a control note:
-            // - Adjust time range to before the note takes effect.
-            // - Stash the toggle param value to apply it for next iteration.
-            if (controlNoteOn != nullptr) {
-                processEndTime = controlNoteOn->samplePosition - 1;
-                controlNoteSearchStart++;
-                nextGateState = allowLinePlayback[slotIndex]->get();
+    // 1. Controlla prima i cambi di parametri o eventi di controllo immediati all'inizio del blocco
+    // Aggiorniamo lo stato dei gate in base ai messaggi MIDI in ingresso in questo blocco
+    for (const auto metadata : midiMessages)
+    {
+        auto m = metadata.getMessage();
+        if (m.isNoteOn())
+        {
+            int ctrlSlot = getSlotIndexForControlNote(m.getNoteNumber());
+            if (ctrlSlot != -1)
+            {
+                // Quando arriva la nota di controllo, il gate copia lo stato del parametro GUI
+                lineGate[ctrlSlot] = allowLinePlayback[ctrlSlot]->get();
             }
-            else {
-                processEndTime = buffer.getNumSamples();
+        }
+    }
+
+    // 2. Filtra i messaggi MIDI
+    for (const auto metadata : midiMessages)
+    {
+        auto m = metadata.getMessage();
+        int samplePos = metadata.samplePosition;
+
+        if (m.isNoteOn())
+        {
+            int slot = getSlotIndexForNote(m.getNoteNumber());
+            int ctrlSlot = getSlotIndexForControlNote(m.getNoteNumber());
+
+            if (slot != -1)
+            {
+                // È una nota musicale appartenente a una linea: passa solo se il gate è aperto
+                if (lineGate[slot])
+                {
+                    outputMidiBuffer.addEvent(m, samplePos);
+                }
             }
+            else if (ctrlSlot != -1)
+            {
+                // È una nota di controllo: la consumiamo qui (non la mandiamo all'output)
+                // per evitare che suoni nel synth a valle, come da tuo commento (bonus)
+            }
+            else
+            {
+                // Note musicali fuori dal range del plugin: passano sempre
+                outputMidiBuffer.addEvent(m, samplePos);
+            }
+        }
+        else if (m.isNoteOff())
+        {
+            int slot = getSlotIndexForNote(m.getNoteNumber());
+            int ctrlSlot = getSlotIndexForControlNote(m.getNoteNumber());
 
-            // Now we have a time range to process - processStartTime…processEndTime.
-            // We have at least two tasks for this time period:
-            // 1. Apply the current line gate - let notes through or not.
-            // 2. If param changes gate state in this period, apply the change at the end.
-            // 3. (bonus) Gate ALL control note events (on and off) so they don't play synth notes. Could do this manually but cleaner to do within the plugin automatically.
-
-            // Loop over all events.
-            for (auto midiMessageIt = midiMessages.begin(); midiMessageIt != midiMessages.end(); ++midiMessageIt) {
-
-                const juce::MidiMessageMetadata metadata = *midiMessageIt;
-                const juce::MidiMessage m = metadata.getMessage();
-
-                // Skip events not in our time period of interest.
-                if ( metadata.samplePosition < processStartTime ||
-                    metadata.samplePosition > processEndTime ) {
-                    continue;
-                }
-
-                // Find out what kind of event this is.
-                const int noteNumber = m.getNoteNumber();
-                const int eventSlotIndex = this->getSlotIndexForNote(noteNumber); // It's a note in a line.
-                const bool isNoteOn = m.isNoteOn();
-
-                // Is this event in a line? If so, appropriately gate it.
-                if ( eventSlotIndex != -1 ) {
-                    if ( eventSlotIndex == slotIndex ) {
-                        if ( isNoteOn && lineGate[slotIndex] ) {
-                            outputMidiBuffer.addEvent(m, metadata.samplePosition);
-                        }
-                        else if ( ! isNoteOn ) {
-                            outputMidiBuffer.addEvent(m, metadata.samplePosition);
-                        }
-                    }
-
-                }
-            } // End loop over all events.
-
-            // Now we've processed all the events up to processEndTime, iterate.
-            lineGate[slotIndex] = nextGateState;
-            processStartTime = processEndTime;
-        } // End while loop for each control note for the current slot.
-    } // End loop over each slot / line.
+            if (slot != -1)
+            {
+                // NOTA OFF CRITICA: Passa SEMPRE i Note Off per evitare note bloccate,
+                // anche se il gate nel frattempo si è chiuso!
+                outputMidiBuffer.addEvent(m, samplePos);
+            }
+            else if (ctrlSlot != -1)
+            {
+                // Consumiamo il Note Off della nota di controllo
+            }
+            else
+            {
+                outputMidiBuffer.addEvent(m, samplePos);
+            }
+        }
+        else
+        {
+            // Pass-through per CC, Pitch Bend, Aftertouch, ecc.
+            outputMidiBuffer.addEvent(m, samplePos);
+        }
+    }
 
     midiMessages.swapWith(outputMidiBuffer);
 }
@@ -310,12 +305,12 @@ void LineTogglerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
 //==============================================================================
 bool LineTogglerAudioProcessor::hasEditor() const
 {
-    return false;
+    return true;
 }
 
 juce::AudioProcessorEditor* LineTogglerAudioProcessor::createEditor()
 {
-    return 0;
+    return new ::LineTogglerAudioProcessorEditor (*this);
 }
 
 //==============================================================================
@@ -341,3 +336,4 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new LineTogglerAudioProcessor();
 }
+
