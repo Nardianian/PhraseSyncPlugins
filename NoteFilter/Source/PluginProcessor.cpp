@@ -7,6 +7,7 @@
 */
 
 #include "PluginProcessor.h"
+#include "PluginEditor.h"
 
 //==============================================================================
 MIDIClipVariationsAudioProcessor::MIDIClipVariationsAudioProcessor()
@@ -265,30 +266,33 @@ void MIDIClipVariationsAudioProcessor::processBlock (juce::AudioBuffer<float>& b
   
     const int variation = *selectedVariation;
 
-    juce::int64 playheadTimeSamples = 0;
+juce::int64 playheadTimeSamples = 0;
 
-    juce::AudioPlayHead::CurrentPositionInfo playheadPosition;
-    juce::AudioPlayHead* playhead = AudioProcessor::getPlayHead();
-    if (playhead) {
-        playhead->getCurrentPosition(playheadPosition);
-        playheadTimeSamples = playheadPosition.timeInSamples;
-        tempoBpm = playheadPosition.bpm;
-    
-        if (! playheadPosition.isPlaying) {
-            currentVariation = variation;
-        }
-        else {
-            // Determine if the last block straddled a phrase boundary.
-            bool lastBlockNewPhrase = timeRangeStraddlesPhraseChange(lastBufferTimestamp, playheadTimeSamples);
-            // Or if the transport has looped back around start.
-            bool reloopNewPhrase = (lastBufferTimestamp > playheadTimeSamples);
-            // If so, apply the channel param.
-            if (lastBlockNewPhrase || reloopNewPhrase) {
+    if (auto* playhead = getPlayHead())
+    {
+        if (auto position = playhead->getPosition())
+        {
+            playheadTimeSamples = position->getTimeInSamples().hasValue() ? *(position->getTimeInSamples()) : 0;
+            tempoBpm = position->getBpm().hasValue() ? *(position->getBpm()) : 120.0;
+
+            if (! position->getIsPlaying())
+            {
                 currentVariation = variation;
+            }
+            else
+            {
+                bool lastBlockNewPhrase = timeRangeStraddlesPhraseChange(lastBufferTimestamp, playheadTimeSamples);
+                bool reloopNewPhrase = (lastBufferTimestamp > playheadTimeSamples);
+                
+                if (lastBlockNewPhrase || reloopNewPhrase)
+                {
+                    currentVariation = variation;
+                }
             }
         }
     }
-    else {
+    else
+    {
         currentVariation = variation;
     }
 
@@ -321,12 +325,12 @@ void MIDIClipVariationsAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 //==============================================================================
 bool MIDIClipVariationsAudioProcessor::hasEditor() const
 {
-    return false;
+    return true;
 }
 
 juce::AudioProcessorEditor* MIDIClipVariationsAudioProcessor::createEditor()
 {
-    return 0;
+    return new MIDIClipVariationsAudioProcessorEditor (*this);
 }
 
 //==============================================================================
@@ -352,3 +356,4 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new MIDIClipVariationsAudioProcessor();
 }
+
