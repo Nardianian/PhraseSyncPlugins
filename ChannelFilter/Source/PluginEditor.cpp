@@ -3,7 +3,7 @@
 
     PluginEditor.cpp
     Created: 16 May 2026 10:57:14pm
-    Author:  Eugenio
+    Author:  Nardianian
 
   ==============================================================================
 */
@@ -14,7 +14,7 @@
 MIDIClipVariationsAudioProcessorEditor::MIDIClipVariationsAudioProcessorEditor (MIDIClipVariationsAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
-    // 1. Configura Label e Slider per il Canale
+    // 1. Configure Channel Label & Slider
     channelLabel.setText ("Channel", juce::dontSendNotification);
     channelLabel.setFont (juce::Font (14.0f));
     channelLabel.setJustificationType (juce::Justification::centredLeft);
@@ -24,24 +24,24 @@ MIDIClipVariationsAudioProcessorEditor::MIDIClipVariationsAudioProcessorEditor (
     channelSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 40, 20);
     addAndMakeVisible (channelSlider);
 
-    // 2. Configura Label e ComboBox per la lunghezza della frase
+    // 2. Configure Phrase Lenght Label & ComboBox
     phraseLengthLabel.setText ("Phrase Length", juce::dontSendNotification);
     phraseLengthLabel.setFont (juce::Font (14.0f));
     phraseLengthLabel.setJustificationType (juce::Justification::centredLeft);
     addAndMakeVisible (phraseLengthLabel);
 
-    // Riempiamo il menu con le stesse voci del processore
+    // We fill the menu with the same entries as the processor
     phraseLengthBox.addItemList ({"1 beat", "4 beats", "8 beats", "16 beats", "32 beats", "64 beats"}, 1);
     addAndMakeVisible (phraseLengthBox);
 
-    // 3. Collega i componenti ai parametri del processore (APVTS)
+    // 3. Connect components to processor parameters (APVTS)
     channelAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         audioProcessor.parameters, "channel", channelSlider);
 
     phraseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
         audioProcessor.parameters, "phraseBeats", phraseLengthBox);
 
-    // Imposta le dimensioni fisse del rettangolo, identiche a Line Toggler
+    // Sets the rectangle to a fixed size, identical to Line Toggler
     setSize (350, 180);
 }
 
@@ -51,10 +51,10 @@ MIDIClipVariationsAudioProcessorEditor::~MIDIClipVariationsAudioProcessorEditor(
 
 void MIDIClipVariationsAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    // Sfondo nero, pulito e minimale
+    // Black background, clean and minimal
     g.fillAll (juce::Colours::black);
 
-    // Titoli in alto
+    // Headlines at the top
     g.setColour (juce::Colours::white);
     g.setFont (juce::Font (18.0f, juce::Font::bold));
     g.drawText("MIDI Channel Filter", 15, 15, 300, 25, juce::Justification::centredLeft);
@@ -66,16 +66,16 @@ void MIDIClipVariationsAudioProcessorEditor::paint (juce::Graphics& g)
 
 void MIDIClipVariationsAudioProcessorEditor::resized()
 {
-    // Organizziamo i componenti nello spazio della finestra
+    // We organize the components in the window space
     auto startY = 75;
     auto rowHeight = 30;
     auto spacing = 15;
 
-    // Riga 1: Canale (Label + Slider)
+    // Line 1: Channel (Label + Slider)
     channelLabel.setBounds (15, startY, 100, rowHeight);
     channelSlider.setBounds (120, startY, 210, rowHeight);
 
-    // Riga 2: Lunghezza Frase (Label + ComboBox)
+    // Line 2: Sentence Length (Label + ComboBox)
     phraseLengthLabel.setBounds (15, startY + rowHeight + spacing, 100, rowHeight);
     phraseLengthBox.setBounds (120, startY + rowHeight + spacing, 120, rowHeight);
 }
