@@ -3,7 +3,7 @@
 
     PluginEditor.h
     Created: 16 May 2026 10:56:03pm
-    Author:  Eugenio
+    Author:  Adrian
 
   ==============================================================================
 */
@@ -25,7 +25,7 @@ public:
 private:
     MIDIClipVariationsAudioProcessor& audioProcessor;
 
-    // Elementi della GUI
+    // GUI Elements
     juce::Slider channelSlider;
     juce::ComboBox phraseLengthBox;
 
