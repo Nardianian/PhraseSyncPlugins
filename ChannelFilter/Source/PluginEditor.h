@@ -3,7 +3,7 @@
 
     PluginEditor.h
     Created: 16 May 2026 10:56:03pm
-    Author:  Adrian
+    Author:  Nardianian
 
   ==============================================================================
 */
